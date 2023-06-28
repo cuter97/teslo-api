@@ -10,7 +10,7 @@ import { validate as isUUID } from 'uuid';
 @Injectable()
 export class ProductsService {
 
-    private readonly logger = new Logger('ProductsService')//"ProductsService" clase en donde voy a usar el logger para manejar errores
+    private readonly logger = new Logger('ProductsService');//"ProductsService" clase en donde voy a usar el logger para manejar errores
 
     constructor(
         @InjectRepository(Product)
@@ -20,19 +20,19 @@ export class ProductsService {
     async create(createProductDto: CreateProductDto) {
         try {
             const product = this.productRepository.create(createProductDto); //crea la instancia (registro) del producto con sus propiedades. NO lo guarda en la base de datos
-            await this.productRepository.save(product)//lo guarda en la base de datos
-            return product
+            await this.productRepository.save(product);//lo guarda en la base de datos
+            return product;
         } catch (error) {
-            this.handleDBExceptions(error)
+            this.handleDBExceptions(error);
         }
     }
 
     findAll(paginationDto: PaginationDto) {
-        const { limit = 10, offset = 0 } = paginationDto
+        const { limit = 10, offset = 0 } = paginationDto;
         return this.productRepository.find({
             take: limit,
             skip: offset,
-        })
+        });
     }
 
     async findOne(term: string) {
@@ -40,14 +40,14 @@ export class ProductsService {
         // const product = await this.productRepository.findOneBy({ id })
 
         if (isUUID(term))
-            product = await this.productRepository.findOneBy({ id: term })
+            product = await this.productRepository.findOneBy({ id: term });
         else {
             const queryBuilder = this.productRepository.createQueryBuilder();
             product = await queryBuilder
                 .where('UPPER(title)=:title or slug=:slug', {
                     title: term.toLowerCase(),
                     slug: term.toLowerCase(),
-                }).getOne(); 
+                }).getOne();
         }
 
         if (!product)
@@ -55,21 +55,33 @@ export class ProductsService {
         return product;
     }
 
-    update(id: number, updateProductDto: UpdateProductDto) {
-        return `This action updates a #${id} product`;
+    async update(id: string, updateProductDto: UpdateProductDto) {
+        const product = await this.productRepository.preload({ //al preload le digo que busque un producto por el id y carge todas las propiedades que esten el en dto
+            id,
+            ...updateProductDto
+        });
+
+        if (!product) throw new NotFoundException('Product not found');
+
+        try {
+            await this.productRepository.save(product);
+            return product
+        } catch (error) {
+            this.handleDBExceptions(error);
+        }
     }
 
     async remove(id: string) {
-        const product = await this.findOne(id)
-        await this.productRepository.remove(product)
+        const product = await this.findOne(id);
+        await this.productRepository.remove(product);
     }
 
     private handleDBExceptions(error: any) {
         if (error.code === '23505')
-            throw new BadRequestException(error.detail)
+            throw new BadRequestException(error.detail);
 
-        this.logger.error(error)
-        throw new InternalServerErrorException('Unexpected error, check logs')
+        this.logger.error(error);
+        throw new InternalServerErrorException('Unexpected error, check logs');
     }
 
 }
