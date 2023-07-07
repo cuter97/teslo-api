@@ -10,6 +10,7 @@ import { PaginationDto } from 'src/common/dtos/pagination.dto';
 
 import { Product } from './entities/product.entity';
 import { ProductImage } from './entities/product-image.entity';
+import { User } from 'src/auth/entities/user.entity';
 
 @Injectable()
 export class ProductsService {
@@ -26,13 +27,14 @@ export class ProductsService {
         private readonly dataSource: DataSource,
     ) { }
 
-    async create(createProductDto: CreateProductDto) {
+    async create(createProductDto: CreateProductDto, user: User) {
         try {
             const { images = [], ...productDetail } = createProductDto
 
             //crea la instancia (registro) del producto con sus propiedades. NO lo guarda en la base de datos
             const product = this.productRepository.create({
                 ...productDetail,
+                user,
                 images: images.map(image => this.productImageRepository.create({ url: image }))
             });
 
@@ -90,7 +92,7 @@ export class ProductsService {
         }
     }
 
-    async update(id: string, updateProductDto: UpdateProductDto) {
+    async update(id: string, updateProductDto: UpdateProductDto, user: User) {
 
         const { images, ...toUpdate } = updateProductDto;
 
@@ -113,6 +115,7 @@ export class ProductsService {
                 product.images = images.map(img => this.productImageRepository.create({ url: img }))
             }
 
+            product.user = user;
             await queryRunner.manager.save(product);
             await queryRunner.commitTransaction();
             await queryRunner.release();
